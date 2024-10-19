@@ -2,120 +2,110 @@ package main
 
 import (
 	"fmt"
+	"time"
 )
 
 func main() {
-	ans := countGoodIntegers(5, 6)
-	fmt.Println("ans", ans)
-	fmt.Println(composeNum(10, 3))
-	fmt.Println(DigitsCount(4, [10]int{1, 1, 1, 1, 0, 0, 0, 0, 0, 0}))
+	t := time.Now()
+	fmt.Println("Hello, playground")
+	//fmt.Println(calExpr("2*3+2"))
+	fmt.Println(addOperators("1000000009", 9))
+	fmt.Println(time.Since(t))
 }
-
-func countGoodIntegers(n int, k int) int64 {
-	half := n / 2
-	var ans int64
-	if n == 1 {
-		for i := 1; i < 10; i++ {
-			if i%k == 0 {
-				ans++
-			}
-		}
-		return ans
-	}
-	var mapVisited = make(map[[10]int]bool)
-	if n%2 == 1 {
-		for num := powerTen(half - 1); num < powerTen(half); num++ {
-			fmt.Println("num", num)
-			for j := 0; j < 10; j++ {
-				realNum := num*powerTen(half+1) + j*powerTen(half) + reverseNum(num)
-				if mapVisited[numToDigits(realNum)] {
-					continue
-				}
-				if realNum%k == 0 {
-					mapVisited[numToDigits(realNum)] = true
-					ans += DigitsCount(n, numToDigits(realNum))
-				}
-			}
-		}
-	} else {
-		for num := powerTen(half - 1); num < powerTen(half); num++ {
-			realNum := num*powerTen(half) + reverseNum(num)
-			if mapVisited[numToDigits(realNum)] {
-				continue
-			}
-			if realNum%k == 0 {
-				ans += DigitsCount(n, numToDigits(realNum))
-				mapVisited[numToDigits(realNum)] = true
+func addOperators(num string, target int) []string {
+	exprCasesNum := 1 << ((len(num) - 1) * 2)
+	var ans []string
+	for i := 0; i < exprCasesNum; i++ {
+		exp := convert(i, num)
+		if isValidExpr(exp) {
+			if calExpr(exp) == target {
+				ans = append(ans, exp)
 			}
 		}
 	}
 	return ans
 }
 
-func numToDigits(num int) [10]int {
-	var digits [10]int
-	for num > 0 {
-		digits[num%10]++
-		num /= 10
+func convert(exprCasesNum int, e string) string {
+	var n int = len(e)
+	for exprCasesNum != 0 {
+		n--
+		if exprCasesNum%4 == 1 {
+			e = e[:n] + "+" + e[n:]
+		} else if exprCasesNum%4 == 2 {
+			e = e[:n] + "-" + e[n:]
+		} else if exprCasesNum%4 == 3 {
+			e = e[:n] + "*" + e[n:]
+		}
+		exprCasesNum /= 4
 	}
-	return digits
+	return e
 }
 
-func DigitsCount(n int, digits [10]int) int64 {
-	var ret int64 = 1
-	var left = n
-	for i := 0; i < 10; i++ {
-		if digits[i] == 0 {
-			continue
+func isValidExpr(e string) bool {
+	//if number is start with 0, it is invalid
+	var lastTokenIndex int = -1
+	for i := 0; i < len(e); i++ {
+		if e[i] == '+' || e[i] == '-' || e[i] == '*' {
+			lastTokenIndex = i
 		}
-		if i == 0 {
-			ret *= composeNum(left-1, digits[i])
+		if e[i] == '0' && i-lastTokenIndex == 1 {
+			if i+1 < len(e) {
+				if e[i+1] >= '0' && e[i+1] <= '9' {
+					return false
+				}
+			}
+		}
+	}
+	return true
+}
+
+func calExpr(e string) int {
+	nums, tokens := getAllNumberAndTokenInExpr(e)
+	var stack []int
+	stack = append(stack, nums[0])
+	for i := 0; i < len(tokens); i++ {
+		if tokens[i] == '*' {
+			stack[len(stack)-1] = stack[len(stack)-1] * nums[i+1]
 		} else {
-			ret *= composeNum(left, digits[i])
+			stack = append(stack, nums[i+1])
 		}
-		left -= digits[i]
 	}
-	return ret
-}
-
-func composeNum(a int, b int) int64 {
-	var ret = int64(1)
-	for i := int64(0); i < int64(b); i++ {
-		ret *= (int64(a) - i)
-	}
-	for i := int64(0); i < int64(b); i++ {
-		ret /= (i + 1)
-	}
-	return ret
-}
-
-func powerTen(n int) int {
-	res := 1
-	for i := 0; i < n; i++ {
-		res *= 10
+	var tokenIndex int = 0
+	var res int = stack[0]
+	for i := 1; i < len(stack); i++ {
+		for tokenIndex < len(tokens) && tokens[tokenIndex] == '*' {
+			tokenIndex++
+		}
+		if tokens[tokenIndex] == '+' {
+			res += stack[i]
+		} else if tokens[tokenIndex] == '-' {
+			res -= stack[i]
+		}
+		tokenIndex++
 	}
 	return res
 }
 
-func nextIncNum(n int) int {
-	n++
-	var numZero int
-	for n%10 == 0 {
-		numZero++
-		n /= 10
+func getAllNumberAndTokenInExpr(e string) ([]int, []byte) {
+	var nums []int
+	var tokens []byte
+	var lastTokenIndex int = -1
+	for i := 0; i < len(e); i++ {
+		if e[i] == '+' || e[i] == '-' || e[i] == '*' {
+			nums = append(nums, composeNum(e[lastTokenIndex+1:i]))
+			tokens = append(tokens, e[i])
+			lastTokenIndex = i
+		}
 	}
-	lastGoodDigit := n % 10
-	for i := 0; i < numZero; i++ {
-		n = n*10 + lastGoodDigit
-	}
-	return n
+	nums = append(nums, composeNum(e[lastTokenIndex+1:]))
+	return nums, tokens
 }
 
-func reverseNum(n int) int {
+func composeNum(e string) int {
 	var res int
-	for n > 0 {
-		res = res*10 + n%10
-		n /= 10
+	for i := 0; i < len(e); i++ {
+		res = res*10 + int(e[i]-'0')
 	}
 	return res
 }
