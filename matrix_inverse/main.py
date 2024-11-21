@@ -11,5 +11,11 @@ def main():
     # 矩阵乘法
     print(np.dot(M_T, M_inv))
 
+
+    # 矩阵分解 : 科尔莫格洛夫分解
+    A = np.array([[1, 1], [1, 1.25]])
+    U = np.linalg.cholesky(A)
+    print(U)
+
 if __name__ == '__main__':
     main()
